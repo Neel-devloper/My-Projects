@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <style>
+        /* Style for the game board grid */
+        #board {
+            display: grid;
+            grid-template-columns: repeat(3, 150px);
+            grid-template-rows: repeat(3, 150px);
+            gap: 5px;
+            margin: 20px auto;
+            width: 460px;
+        }
+
+        /* Style for each cell */
+        .cell {
+            width: 150px;
+            height: 150px;
+            background-color: lightgray;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 100px;
+            font-family: Arial, sans-serif;
+            cursor: pointer;
+        }
+
+        /* Hover effect for clickable cells */
+        .cell.hoverable:hover {
+            background-color: lightblue;
+        }
+
+        /* Highlight winning cells */
+        .cell.winning {
+            background-color: yellow;
+        }
+
+        /* Borders to create lines between cells */
+        .row0, .row1 {
+            border-bottom: 5px solid black;
+        }
+
+        .col0, .col1 {
+            border-right: 5px solid black;
+        }
+
+        /* Start screen styling */
+        #start-screen {
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        #start-screen button {
+            padding: 15px 30px;
+            font-size: 24px;
+            margin: 10px;
+            cursor: pointer;
+        }
+
+        /* Game board container styling */
+        #game-board {
+            text-align: center;
+        }
+
+        /* Status message styling */
+        #status {
+            font-size: 36px;
+            margin-top: 20px;
+        }
+
+        /* Play Again button styling */
+        #play-again {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- Start screen with mode selection -->
+    <div id="start-screen">
+        <button id="play-computer">Play with Unbeatable Computer</button>
+        <button id="play-two-player">Play with Another Player</button>
+    </div>
+
+    <!-- Game board, initially hidden -->
+    <div id="game-board" style="display: none;">
+        <div id="board">
+            <!-- 3x3 grid of cells with row/col classes for borders -->
+            <div class="cell row0 col0" id="cell0"></div>
+            <div class="cell row0 col1" id="cell1"></div>
+            <div class="cell row0 col2" id="cell2"></div>
+            <div class="cell row1 col0" id="cell3"></div>
+            <div class="cell row1 col1" id="cell4"></div>
+            <div class="cell row1 col2" id="cell5"></div>
+            <div class="cell row2 col0" id="cell6"></div>
+            <div class="cell row2 col1" id="cell7"></div>
+            <div class="cell row2 col2" id="cell8"></div>
+        </div>
+        <!-- Status display and Play Again button -->
+        <div id="status"></div>
+        <button id="play-again" style="display: none;">Play Again</button>
+    </div>
+
+    <script>
+        // Game state variables
+        let mode; // 'computer' or 'two-player'
+        let board = Array(9).fill(''); // 9-cell board
+        let currentPlayer = 'X'; // 'X' starts
+        let gameOver = false;
+        let winner = null;
+
+        // All possible winning combinations
+        const winningCombinations = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+            [0, 4, 8], [2, 4, 6] // diagonals
+        ];
+
+        // Check for a winner
+        function checkWin() {
+            for (let combo of winningCombinations) {
+                const [a, b, c] = combo;
+                if (board[a] && board[a] === board[b] && board[b] === board[c]) {
+                    return { winner: board[a], combo };
+                }
+            }
+            return null;
+        }
+
+        // Update the status message
+        function updateStatus() {
+            const status = document.getElementById('status');
+            if (gameOver) {
+                if (winner) {
+                    status.textContent = `${winner} Wins!`;
+                } else {
+                    status.textContent = 'Draw!';
+                }
+                document.getElementById('play-again').style.display = 'block';
+            } else {
+                status.textContent = `${currentPlayer}'s turn`;
+                document.getElementById('play-again').style.display = 'none';
+            }
+        }
+
+        // Reset the game to initial state
+        function resetGame() {
+            board = Array(9).fill('');
+            currentPlayer = 'X';
+            gameOver = false;
+            winner = null;
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.textContent = '';
+                cell.classList.remove('winning');
+            });
+            updateStatus();
+            updateHover();
+        }
+
+        // Update hover effect for clickable cells
+        function updateHover() {
+            document.querySelectorAll('.cell').forEach((cell, index) => {
+                if (board[index] === '' && !gameOver) {
+                    cell.classList.add('hoverable');
+                } else {
+                    cell.classList.remove('hoverable');
+                }
+            });
+        }
+
+        // Find a winning move for a player
+        function findWinningMove(player) {
+            for (let combo of winningCombinations) {
+                const [a, b, c] = combo;
+                if (board[a] === player && board[b] === player && board[c] === '') return c;
+                if (board[a] === player && board[c] === player && board[b] === '') return b;
+                if (board[b] === player && board[c] === player && board[a] === '') return a;
+            }
+            return null;
+        }
+
+        // Find an attack move to set up a win
+        function findAttackMove() {
+            for (let combo of winningCombinations) {
+                const oCount = combo.filter(i => board[i] === 'O').length;
+                const empty = combo.filter(i => board[i] === '');
+                if (oCount === 1 && empty.length === 2) {
+                    return empty[0];
+                }
+            }
+            return null;
+        }
+
+        // Computer makes its move
+        function makeComputerMove() {
+            let move;
+
+            // 1. Win if possible
+            move = findWinningMove('O');
+            if (move !== null) {
+                placeMove(move, 'O');
+                return;
+            }
+
+            // 2. Block player's win
+            move = findWinningMove('X');
+            if (move !== null) {
+                placeMove(move, 'O');
+                return;
+            }
+
+            // 3. Take center
+            if (board[4] === '') {
+                placeMove(4, 'O');
+                return;
+            }
+
+            // 4. Specific defense: if cells 7 and 5 are 'X', take 2
+            if (board[7] === 'X' && board[5] === 'X' && board[2] === '') {
+                placeMove(2, 'O');
+                return;
+            }
+
+            // 5. Attack: set up a win
+            move = findAttackMove();
+            if (move !== null) {
+                placeMove(move, 'O');
+                return;
+            }
+
+            // 6. Opposite corners
+            const opposites = [[0,8], [2,6], [8,0], [6,2]];
+            for (let [a,b] of opposites) {
+                if (board[a] === 'X' && board[b] === '') {
+                    placeMove(b, 'O');
+                    return;
+                }
+            }
+
+            // 7. Random corner
+            const corners = [0,2,6,8];
+            const emptyCorners = corners.filter(i => board[i] === '');
+            if (emptyCorners.length > 0) {
+                const index = emptyCorners[Math.floor(Math.random() * emptyCorners.length)];
+                placeMove(index, 'O');
+                return;
+            }
+
+            // 8. Any empty cell
+            const emptyCells = board.map((cell, i) => cell === '' ? i : null).filter(i => i !== null);
+            if (emptyCells.length > 0) {
+                const index = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                placeMove(index, 'O');
+                return;
+            }
+        }
+
+        // Place a move on the board
+        function placeMove(index, symbol) {
+            board[index] = symbol;
+            document.getElementById(`cell${index}`).textContent = symbol;
+        }
+
+        // Handle cell clicks
+        function handleCellClick(index) {
+            if (gameOver || board[index] !== '') return;
+
+            placeMove(index, currentPlayer);
+
+            const result = checkWin();
+            if (result) {
+                gameOver = true;
+                winner = result.winner;
+                highlightWinningCells(result.combo);
+            } else if (board.every(cell => cell !== '')) {
+                gameOver = true;
+            } else {
+                if (mode === 'two-player') {
+                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                } else if (currentPlayer === 'X') { // Computer mode: after 'X', computer moves
+                    makeComputerMove();
+                    const compResult = checkWin();
+                    if (compResult) {
+                        gameOver = true;
+                        winner = compResult.winner;
+                        highlightWinningCells(compResult.combo);
+                    } else if (board.every(cell => cell !== '')) {
+                        gameOver = true;
+                    }
+                }
+            }
+            updateStatus();
+            updateHover();
+        }
+
+        // Highlight winning combination
+        function highlightWinningCells(combo) {
+            combo.forEach(index => {
+                document.getElementById(`cell${index}`).classList.add('winning');
+            });
+        }
+
+        // Add click listeners to cells
+        document.querySelectorAll('.cell').forEach((cell, index) => {
+            cell.addEventListener('click', () => handleCellClick(index));
+        });
+
+        // Play Again button listener
+        document.getElementById('play-again').addEventListener('click', resetGame);
+
+        // Start game in computer mode
+        document.getElementById('play-computer').addEventListener('click', () => {
+            mode = 'computer';
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-board').style.display = 'block';
+            resetGame();
+        });
+
+        // Start game in two-player mode
+        document.getElementById('play-two-player').addEventListener('click', () => {
+            mode = 'two-player';
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-board').style.display = 'block';
+            resetGame();
+        });
+    </script>
+</body>
+</html>
