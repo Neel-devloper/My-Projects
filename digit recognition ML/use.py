@@ -90,6 +90,7 @@ hidden_weights, hidden_biases, output_weights, output_biases = load_from_db()
 
 # Select 20 random image indices
 num_images = 20
+correct = 0
 img_indices = random.sample(range(len(x_train)), num_images)
 
 # Process and predict for each image
@@ -104,3 +105,8 @@ for idx, img_idx in enumerate(img_indices):
     for digit, prob in enumerate(predicted):
         print(f"Digit {digit}: {prob:.4f}")
     print(f"Predicted Digit: {np.argmax(predicted)}")
+    
+    if int(np.argmax(predicted)) == int(true_label):
+        correct += 1
+
+print(f'Accuracy : {(correct/num_images)*100}%')
