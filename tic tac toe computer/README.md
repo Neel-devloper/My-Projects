@@ -1,4 +1,4 @@
-This is a unbeatable tic tac toe computer meaning this computer can never lose (but may have a draw).
+This is a unbeatable tic tac toe computer meaning this computer can never lose (it may have a draw).
 The UI is programmed in pygame.
 This game supports multiplayer tic tac toe too.
 
