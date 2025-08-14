@@ -1,78 +1,115 @@
+"""Simple command-line search utility using Google Custom Search API.
+
+This script allows users to search for general links, images, or videos. If
+no special suffix is provided, it will search Wikipedia for the query and
+scrape the resulting page for its title and paragraphs.
+
+Usage examples:
+    python search engine.py
+    # then type your query, optionally ending with /images, /videos or /links
+
+API credentials must be supplied through the ``GOOGLE_API_KEY`` and
+``SEARCH_ENGINE_ID`` environment variables.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from typing import List, Optional
+
 import requests
 from bs4 import BeautifulSoup
 
-API_key = 'AIzaSyBvFDwTSpxT-l4Q0F7L-2U-ObzrP3xk-dU'
-SEARCH_ENGINE_ID = '1780952622f2444c3'
 
-print("add '/images' to search for images at the end of your search")
-print("add '/links' to search for links at the end of your search")
-print("add '/videos' to search for videos at the end of your search\n")
+API_KEY = os.getenv("GOOGLE_API_KEY")
+SEARCH_ENGINE_ID = os.getenv("SEARCH_ENGINE_ID")
+GOOGLE_URL = "https://www.googleapis.com/customsearch/v1"
 
-search_query = input('Search Anything: ')
-url = 'https://www.googleapis.com/customsearch/v1'
 
-if '/images' in search_query.strip():
-    params = {
-        'q': search_query,
-        'key': API_key,
-        'cx': SEARCH_ENGINE_ID,
-        'searchType': 'image'
-    }
-    response = requests.get(url, params=params)
-    results = response.json()['items']
-    for item in results:
-        print(item['link'])
-        print()
+def google_search(query: str, search_type: Optional[str] = None) -> List[str]:
+    """Return a list of result links from Google Custom Search.
 
-elif '/videos' in search_query.strip():
-    search_query = search_query + ' youtube'
-    params = {
-        'q': search_query,
-        'key': API_key,
-        'cx': SEARCH_ENGINE_ID,
-    }
+    Parameters
+    ----------
+    query:
+        The search query to execute.
+    search_type:
+        Optional type of search ("image" for image results).
+    """
 
-    response = requests.get(url, params=params)
-    results = response.json()['items']
-    for item in results:
-        print(item['link'])
-        print()
+    params = {"q": query, "key": API_KEY, "cx": SEARCH_ENGINE_ID}
+    if search_type == "image":
+        params["searchType"] = "image"
 
-elif '/links' in search_query.strip():
-    params = {
-        'q': search_query,
-        'key': API_key,
-        'cx': SEARCH_ENGINE_ID
-    }
+    response = requests.get(GOOGLE_URL, params=params, timeout=10)
+    response.raise_for_status()
+    data = response.json()
+    return [item.get("link", "") for item in data.get("items", [])]
 
-    response = requests.get(url, params=params)
-    results = response.json().get('items', [])
-    for item in results:
-        print(item.get('link', 'No link found'))
+
+def display_links(links: List[str]) -> None:
+    """Print each link on a new line."""
+
+    if not links:
+        print("No results found.")
+        return
+    for link in links:
+        print(link)
         print()
 
 
-else:
-    search_query = search_query + ' wikipedia'
-    params = {
-        'q': search_query,
-        'key': API_key,
-        'cx': SEARCH_ENGINE_ID
-    }
+def scrape_wikipedia(query: str) -> None:
+    """Search Wikipedia for the query and print the page content."""
 
-    response = requests.get(url, params=params)
-    results = response.json()
+    links = google_search(f"{query} wikipedia")
+    if not links:
+        print("No results found.")
+        return
+
+    response = requests.get(links[0], timeout=10)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    title_tag = soup.find("h1")
+    if title_tag:
+        print(f"Title: {title_tag.text}")
+
+    for i, paragraph in enumerate(soup.find_all("p"), start=1):
+        text = paragraph.get_text(strip=True)
+        if text:
+            print(f"Paragraph {i}: {text}")
 
 
-    if 'items' in results:
-        # scrape the website
-        link = results['items'][0]['link'] # gets wikipedia link
-        response = requests.get(link)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        title = soup.find('h1').text
-        print(f'Title: {title}')
-        paragraphs = soup.find_all('p')
-        for i, paragraph in enumerate(paragraphs):
-            print(f'Paragraph {i+1}: {paragraph.text}')
+def main() -> None:
+    print("Add '/images' to search for images at the end of your search")
+    print("Add '/links' to search for links at the end of your search")
+    print("Add '/videos' to search for videos at the end of your search\n")
+
+    query = input("Search Anything: ").strip()
+
+    if query.endswith("/images"):
+        clean_query = query[:-len("/images")].strip()
+        links = google_search(clean_query, search_type="image")
+        display_links(links)
+    elif query.endswith("/videos"):
+        clean_query = query[:-len("/videos")].strip() + " youtube"
+        links = google_search(clean_query)
+        display_links(links)
+    elif query.endswith("/links"):
+        clean_query = query[:-len("/links")].strip()
+        links = google_search(clean_query)
+        display_links(links)
     else:
-        print('Error: No results found.')
+        scrape_wikipedia(query)
+
+
+if __name__ == "__main__":
+    if not API_KEY or not SEARCH_ENGINE_ID:
+        print(
+            "Error: API credentials missing. Set GOOGLE_API_KEY and "
+            "SEARCH_ENGINE_ID environment variables."
+        )
+        sys.exit(1)
+    main()
+
