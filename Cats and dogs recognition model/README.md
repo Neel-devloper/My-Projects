@@ -4,7 +4,10 @@ This project implements a deep learning model to classify images as either cats 
 
 ## Training
 
-- **You can use train.py to train the model but the pre-trained model is provided.
+- You can use train.py to train the model but the pre-trained model is provided.
+
+## Dataset
+- I used this dataset for the training of the model : https://www.kaggle.com/datasets/karakaggle/kaggle-cat-vs-dog-dataset
 
 ## Features
 
