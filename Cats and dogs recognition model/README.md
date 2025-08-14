@@ -2,6 +2,10 @@
 
 This project implements a deep learning model to classify images as either cats or dogs using a Convolutional Neural Network (CNN) with transfer learning.
 
+## Training
+
+- **You can use train.py to train the model but the pre-trained model is provided.
+
 ## Features
 
 - **Transfer Learning**: Uses pre-trained VGG16 model as base for better performance
